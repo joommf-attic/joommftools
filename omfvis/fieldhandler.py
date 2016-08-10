@@ -24,4 +24,3 @@ def field2hv(field, slice_axis, slice_coord):
     label = 'Slice at {} = {}'.format(slice_axis, slice_coord)
     return hv.VectorField([X, Y, angm, modm], kdims=[dims[axis[0]], dims[axis[1]]], label=label) + \
            hv.Image(cmap, bounds=bounds, label='M_{} through slice'.format(dims[2]))
-    #return X, Y, x, y, cmap
