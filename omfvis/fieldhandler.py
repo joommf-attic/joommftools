@@ -7,14 +7,13 @@ import glob
 import os
 
 
-
 def field2inplane(field, slice_axis, slice_coord):
     """
     field2hv(field, slice_axis, slice_coord)
-    
+
     This function constructs a Holoviews object
     which shows the in plane Magnetisation and out of plane Magnetisation
-    
+
     Inputs
     ======
     field:
@@ -38,28 +37,32 @@ def field2inplane(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]], field.cmin[axis[1]], field.cmax[axis[0]], field.cmax[axis[1]]]
+    bounds = [field.cmin[axis[0]],
+              field.cmin[axis[1]],
+              field.cmax[axis[0]],
+              field.cmax[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
-    modm = (flat[axis[0]::3]**2 + flat[axis[1]::3]**2).reshape((len(x), len(y)))
-    angm = np.arctan2(flat[axis[1]::3], flat[axis[0]::3]).reshape((len(x), len(y)))
+    modm = (flat[axis[0]::3]**2 +
+            flat[axis[1]::3]**2).reshape((len(x), len(y)))
+    angm = np.arctan2(flat[axis[1]::3],
+                      flat[axis[0]::3]).reshape((len(x), len(y)))
     outofplane = flat[axis[2]::3]
     mz = flat[axis[2]::3].reshape((len(x), len(y)))
-    kdims = kdims=[dims[axis[0]], dims[axis[1]]]
+    kdims = kdims = [dims[axis[0]], dims[axis[1]]]
     return hv.VectorField([X, Y, angm, modm],
-                          kdims = kdims, vdims=['xyfield'],
+                          kdims=kdims, vdims=['xyfield'],
                           label='In-plane Magnetisation')
-
 
 
 def field2outofplane(field, slice_axis, slice_coord):
     """
     field2hv(field, slice_axis, slice_coord)
-    
+
     This function constructs a Holoviews object
     which shows the out of plane Magnetisation
-    
+
     Inputs
     ======
     field:
@@ -83,18 +86,23 @@ def field2outofplane(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]], field.cmin[axis[1]], field.cmax[axis[0]], field.cmax[axis[1]]]
+    bounds = [field.cmin[axis[0]],
+              field.cmin[axis[1]],
+              field.cmax[axis[0]],
+              field.cmax[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
-    modm = (flat[axis[0]::3]**2 + flat[axis[1]::3]**2).reshape((len(x), len(y)))
-    angm = np.arctan2(flat[axis[1]::3], flat[axis[0]::3]).reshape((len(x), len(y)))
+    modm = (flat[axis[0]::3]**2 +
+            flat[axis[1]::3]**2).reshape((len(x), len(y)))
+    angm = np.arctan2(flat[axis[1]::3],
+                      flat[axis[0]::3]).reshape((len(x), len(y)))
     outofplane = flat[axis[2]::3]
     mz = flat[axis[2]::3].reshape((len(x), len(y)))
-    kdims = kdims=[dims[axis[0]], dims[axis[1]]]
+    kdims = kdims = [dims[axis[0]], dims[axis[1]]]
     return hv.Image(mz, bounds=bounds,
                     label='Out of plane Magnetisation',
-                    kdims = kdims, 
+                    kdims=kdims,
                     vdims=[hv.Dimension('M{}'.format(slice_axis),
                                         range=(-1, 1))])
 
@@ -104,62 +112,52 @@ def create_inplane_holomap(files, slice_coordinates, axis='z'):
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
     filename_fun = lambda filename: int(filename.split('-')[3])
-    axis # None is there due to a bug in Holoviews 1.6.1 - 
-                                 # https://github.com/ioam/holoviews/pull/830
-
     slicecoords = list(slice_coordinates)
-    inplane = [((filename_fun(file), slicecoord), 
-           field2inplane(file, axis, slicecoord)) 
-           for file in files 
-           for slicecoord in slicecoords]
-    outofplane = [((filename_fun(file), slicecoord), 
-           field2outofplane(file, axis, slicecoord)) 
-           for file in files 
-           for slicecoord in slicecoords]
-    
+    inplane = [((filename_fun(file), slicecoord),
+                field2inplane(file, axis, slicecoord))
+               for file in files
+               for slicecoord in slicecoords]
+    outofplane = [((filename_fun(file), slicecoord),
+                   field2outofplane(file, axis, slicecoord))
+                  for file in files
+                  for slicecoord in slicecoords]
+
     return hv.HoloMap(inplane, kdims=[file_dimension, slice_dimension])
+
 
 def create_outofplane_holomap(files, slice_coordinates, axis='z'):
     physical_dimension = hv.Dimension('SliceDimension')
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
     filename_fun = lambda filename: int(filename.split('-')[3])
-    axis # None is there due to a bug in Holoviews 1.6.1 - 
-                                 # https://github.com/ioam/holoviews/pull/830
-
     slicecoords = list(slice_coordinates)
-    inplane = [((filename_fun(file), slicecoord), 
-           field2inplane(file, axis, slicecoord)) 
-           for file in files 
-           for slicecoord in slicecoords]
-    outofplane = [((filename_fun(file), slicecoord), 
-           field2outofplane(file, axis, slicecoord)) 
-           for file in files 
-           for slicecoord in slicecoords]
-    
+    inplane = [((filename_fun(file), slicecoord),
+                field2inplane(file, axis, slicecoord))
+               for file in files
+               for slicecoord in slicecoords]
+    outofplane = [((filename_fun(file), slicecoord),
+                   field2outofplane(file, axis, slicecoord))
+                  for file in files
+                  for slicecoord in slicecoords]
+
     return hv.HoloMap(outofplane, kdims=[file_dimension, slice_dimension])
 
 
 def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
-    physical_dimension = hv.Dimension('SliceDimension')
-    file_dimension = hv.Dimension('File')
-    slice_dimension = hv.Dimension('{} coordinate'.format('z'))
     filename_fun = lambda filename: int(filename.split('-')[3])
-    axis # None is there due to a bug in Holoviews 1.6.1 - 
-                                 # https://github.com/ioam/holoviews/pull/830
+    file_dimension = hv.Dimension(
+        'field', values=list(files), value_format=filename_fun)
+    physical_dimension = hv.Dimension('slice_axis', values=[axis])
+    slice_dimension = hv.Dimension(
+        'slice_coord', values=list(slice_coordinates))
+    return hv.DynamicMap(field2inplane, kdims=[file_dimension, physical_dimension, slice_dimension])
 
-
-    outofplane = [((filename_fun(file), slicecoord), 
-           field2outofplane(file, axis, slicecoord)) 
-           for file in files 
-           for slicecoord in slicecoords]
-    
-    return hv.DynamicMap(inplane, kdims=[file_dimension, slice_dimension])
 
 def create_outofplane_dynamic_map(files, slice_coordinates, axis='z'):
-    physical_dimension = hv.Dimension('slice_axis', values=[axis, None])
-    file_dimension = hv.Dimension('field', values=files)
-    slice_dimension = hv.Dimension('slice_coord', values=slice_coordinates)
     filename_fun = lambda filename: int(filename.split('-')[3])
-    
+    file_dimension = hv.Dimension(
+        'field', values=list(files), value_format=filename_fun)
+    physical_dimension = hv.Dimension('slice_axis', values=[axis])
+    slice_dimension = hv.Dimension(
+        'slice_coord', values=list(slice_coordinates))
     return hv.DynamicMap(field2outofplane, kdims=[file_dimension, physical_dimension, slice_dimension])
