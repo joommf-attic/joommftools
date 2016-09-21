@@ -179,7 +179,9 @@ def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
     slice_dimension = hv.Dimension(
         'slice_coord', values=list(slice_coordinates))
     return hv.DynamicMap(field2inplane_vectorfield,
-           kdims=[file_dimension, physical_dimension, slice_dimension])
+                         kdims=[file_dimension,
+                                physical_dimension,
+                                slice_dimension])
 
 
 def create_outofplane_dynamic_map(files, slice_coordinates, axis='z'):
@@ -189,4 +191,63 @@ def create_outofplane_dynamic_map(files, slice_coordinates, axis='z'):
     physical_dimension = hv.Dimension('slice_axis', values=[axis])
     slice_dimension = hv.Dimension(
         'slice_coord', values=list(slice_coordinates))
-    return hv.DynamicMap(field2outofplane, kdims=[file_dimension, physical_dimension, slice_dimension])
+    return hv.DynamicMap(field2outofplane,
+                         kdims=[file_dimension,
+                                physical_dimension,
+                                slice_dimension])
+
+
+def field2topological_density(field, slice_axis, slice_coord):
+    """
+    field2topological_density(field, slice_axis, slice_coord)
+
+    This function constructs a Holoviews object
+    which shows the topological density.
+
+    Inputs
+    ======
+    field:
+        Path to an OMF file or object of type oommffield.Field
+    slice_axis:
+        The axis along which the vector field will be sliced given as a string.
+        Must be one of ['x', 'y', 'z']
+    slice_coord:
+        The coordinate along the slice_axis where the field is sliced
+    """
+    # Construct a field object if not a field object
+    if isinstance(field, str):
+        field = oommffield.read_oommf_file(field)
+    field.normalise()
+    if slice_axis == 'z':
+        axis = (0, 1, 2)
+    elif slice_axis == 'y':
+        axis = (0, 2, 1)
+    elif slice_axis == 'x':
+        axis = (1, 2, 0)
+    else:
+        raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
+    dims = ['x', 'y', 'z']
+    bounds = [field.cmin[axis[0]],
+              field.cmin[axis[1]],
+              field.cmax[axis[0]],
+              field.cmax[axis[1]]]
+    x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
+    shape = np.shape(vec)[0], np.shape(vec)[1]
+    mbig = np.zeros((shape[0] + 2, shape[1] + 2, 3))
+    mbig[1:-1, 1:-1] = vec
+    Q = np.zeros((shape[0] + 2, shape[1] + 2))
+    print(shape)
+
+    for i in range(1, shape[0]+1):
+        for j in range(1, shape[1]+1):
+            Q[i, j] = (mbig[i, j].dot(np.cross(mbig[i+1, j], mbig[i, j+1])) +
+                       mbig[i, j].dot(np.cross(mbig[i-1, j], mbig[i, j-1])) -
+                       mbig[i, j].dot(np.cross(mbig[i-1, j], mbig[i, j+1])) -
+                       mbig[i, j].dot(np.cross(mbig[i+1, j], mbig[i, j-1]))
+                       )
+
+    return hv.Image(Q[1:-1, 1:-1],
+                    label='Topological Density',
+                    bounds=bounds,
+                    kdims=[dims[axis[0]], dims[axis[1]]],
+                    vdims=[hv.Dimension('Q_{}'.format(slice_axis))])
