@@ -150,6 +150,20 @@ def field2outofplane(field, slice_axis, slice_coord):
 
 
 def create_inplane_holomap(files, slice_coordinates, axis='z'):
+    """
+    Creates an inplane magnetisation vector field plot holomap
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
     physical_dimension = hv.Dimension('SliceDimension')
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
@@ -161,7 +175,47 @@ def create_inplane_holomap(files, slice_coordinates, axis='z'):
     return hv.HoloMap(inplane, kdims=[file_dimension, slice_dimension])
 
 
+def create_inplane_holomap(files, slice_coordinates, axis='z'):
+    """
+    Creates an inplane magnetisation vector field plot holomap
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
+    physical_dimension = hv.Dimension('SliceDimension')
+    file_dimension = hv.Dimension('File')
+    slice_dimension = hv.Dimension('{} coordinate'.format('z'))
+    slicecoords = list(slice_coordinates)
+    inplane = [((filename_fun(file), slicecoord),
+                field2inplane_angle(file, axis, slicecoord))
+               for file in files
+               for slicecoord in slicecoords]
+    return hv.HoloMap(inplane, kdims=[file_dimension, slice_dimension])
+
+
 def create_outofplane_holomap(files, slice_coordinates, axis='z'):
+    """
+    Creates an out of plane magnetisation magnitude plot holomap
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
     physical_dimension = hv.Dimension('SliceDimension')
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
@@ -175,6 +229,20 @@ def create_outofplane_holomap(files, slice_coordinates, axis='z'):
 
 
 def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
+    """
+    Creates an inplane magnetisation vector field plot dynamic map
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
     file_dimension = hv.Dimension(
         'File', value_format=filename_fun, values=list(files))
     physical_dimension = hv.Dimension('slice_axis', values=[axis])
@@ -187,12 +255,52 @@ def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
 
 
 def create_outofplane_dynamic_map(files, slice_coordinates, axis='z'):
+    """
+    Creates an out of plane magnetisation magnitude plot dynamic map
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
     file_dimension = hv.Dimension(
         'File', value_format=filename_fun, values=list(files))
     physical_dimension = hv.Dimension('slice_axis', values=[axis])
     slice_dimension = hv.Dimension(
         'slice_coord', values=list(slice_coordinates))
     return hv.DynamicMap(field2outofplane,
+                         kdims=[file_dimension,
+                                physical_dimension,
+                                slice_dimension])
+
+
+def create_inplane_angle_dynamic_map(files, slice_coordinates, axis='z'):
+    """
+    Creates an inplane magnetisation vector field plot dynamic map
+    for the given list of files.
+    Input
+    -----
+    files:
+        List of strings containing file paths to OMF files.
+        This must be ordered in the way that is needed in the
+        HoloMap
+    slice_coordinates:
+        The coordinates along the slice_axis where the field is sliced
+    slice_axis:
+        The axis along which slices are taken.
+    """
+    file_dimension = hv.Dimension(
+        'File', value_format=filename_fun, values=list(files))
+    physical_dimension = hv.Dimension('slice_axis', values=[axis])
+    slice_dimension = hv.Dimension(
+        'slice_coord', values=list(slice_coordinates))
+    return hv.DynamicMap(field2inplane_angle,
                          kdims=[file_dimension,
                                 physical_dimension,
                                 slice_dimension])
@@ -284,6 +392,15 @@ class ODT2hv:
         self.hv = hv.Table(self.frame)
 
     def get_curve(self, file, graph):
+        """
+        Inputs
+        ------
+        file:
+            OMF filename
+        graph:
+            One of ODT2hv.headers, a header from the ODT file.
+        """
+
         if isinstance(file, str):
             try:
                 index = self.omfpaths.index(file)
