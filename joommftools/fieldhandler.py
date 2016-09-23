@@ -2,9 +2,14 @@ import holoviews as hv
 import numpy as np
 import pandas as pd
 import oommffield
+import oommfodt
 import re
 import glob
 import os
+
+
+def filename_fun(filename):
+    return int(filename.split('-')[3])
 
 
 def field2inplane_vectorfield(field, slice_axis, slice_coord):
@@ -148,7 +153,6 @@ def create_inplane_holomap(files, slice_coordinates, axis='z'):
     physical_dimension = hv.Dimension('SliceDimension')
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
-    filename_fun = lambda filename: int(filename.split('-')[3])
     slicecoords = list(slice_coordinates)
     inplane = [((filename_fun(file), slicecoord),
                 field2inplane_vectorfield(file, axis, slicecoord))
@@ -161,7 +165,6 @@ def create_outofplane_holomap(files, slice_coordinates, axis='z'):
     physical_dimension = hv.Dimension('SliceDimension')
     file_dimension = hv.Dimension('File')
     slice_dimension = hv.Dimension('{} coordinate'.format('z'))
-    filename_fun = lambda filename: int(filename.split('-')[3])
     slicecoords = list(slice_coordinates)
     outofplane = [((filename_fun(file), slicecoord),
                    field2outofplane(file, axis, slicecoord))
@@ -172,9 +175,8 @@ def create_outofplane_holomap(files, slice_coordinates, axis='z'):
 
 
 def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
-    filename_fun = lambda filename: int(filename.split('-')[3])
     file_dimension = hv.Dimension(
-        'field', values=list(files), value_format=filename_fun)
+        'File', value_format=filename_fun, values=list(files))
     physical_dimension = hv.Dimension('slice_axis', values=[axis])
     slice_dimension = hv.Dimension(
         'slice_coord', values=list(slice_coordinates))
@@ -185,9 +187,8 @@ def create_inplane_dynamic_map(files, slice_coordinates, axis='z'):
 
 
 def create_outofplane_dynamic_map(files, slice_coordinates, axis='z'):
-    filename_fun = lambda filename: int(filename.split('-')[3])
     file_dimension = hv.Dimension(
-        'field', values=list(files), value_format=filename_fun)
+        'File', value_format=filename_fun, values=list(files))
     physical_dimension = hv.Dimension('slice_axis', values=[axis])
     slice_dimension = hv.Dimension(
         'slice_coord', values=list(slice_coordinates))
@@ -251,3 +252,59 @@ def field2topological_density(field, slice_axis, slice_coord):
                     bounds=bounds,
                     kdims=[dims[axis[0]], dims[axis[1]]],
                     vdims=[hv.Dimension('Q_{}'.format(slice_axis))])
+
+
+class ODT2hv:
+
+    def __init__(self, odtpath, omfpaths):
+        """
+        ODT2hv(field, slice_axis, slice_coord)
+
+        This function takes a list of OMF files and matches the filenames
+        with outputs in a corresponding ODT file. Graphs of properties can
+        be plotted using the method ODT2hv.get_curve
+
+        Inputs
+        ======
+        odtpath:
+            Path to an OOMMF ODT file.
+        omfpaths:
+            List of OMF files.
+        """
+        self.omfpaths = omfpaths
+        strarray = [re.findall(r"[\w']+", file)[-3:-1] for file in omfpaths]
+        relevantfiles = np.array([[int(i[0]), int(i[1])] for i in strarray])
+        index = pd.DataFrame(relevantfiles, columns=('stage', 'iteration'))
+        odtframe = oommfodt.OOMMFodt(odtpath).df
+        reduced = pd.merge(index, odtframe)
+        reduced = reduced.reset_index()
+        reduced.rename(columns={'index': 'File'}, inplace=True)
+        self.frame = reduced
+        self.headers = list(reduced.columns)[1:]
+        self.hv = hv.Table(self.frame)
+
+    def get_curve(self, file, graph):
+        if isinstance(file, str):
+            try:
+                index = self.omfpaths.index(file)
+            except:
+                raise ValueError("File not in list of OMF files")
+        else:
+            index = file
+        return self.hv.to.curve('File', graph, []) * \
+            hv.VLine(index)
+
+    def create_holomap(self):
+        file_dimension = hv.Dimension('File')
+        graphdim = hv.Dimension('Graph')
+        inplane = [((filename_fun(file), graph),
+                    self.get_curve(file, graph))
+                   for file in self.omfpaths
+                   for graph in self.headers]
+        return hv.HoloMap(inplane, kdims=[file_dimension, graphdim])
+
+    def create_dmap(self):
+        file_dimension = hv.Dimension(
+            'File', values=self.omfpaths, value_format=filename_fun)
+        graph = hv.Dimension('Graph', values=self.headers)
+        return hv.DynamicMap(self.get_curve, kdims=[file_dimension, graph])
