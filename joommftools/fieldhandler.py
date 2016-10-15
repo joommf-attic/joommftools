@@ -1,8 +1,8 @@
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import oommffield
 import oommfodt
+import discretisedfield
 import re
 import glob
 import os
@@ -22,7 +22,7 @@ def field2inplane_vectorfield(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -31,7 +31,7 @@ def field2inplane_vectorfield(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -65,7 +65,7 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -74,7 +74,7 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -85,10 +85,10 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]],
-              field.cmin[axis[1]],
-              field.cmax[axis[0]],
-              field.cmax[axis[1]]]
+    bounds = [field.mesh.p1[axis[0]],
+              field.mesh.p1[axis[1]],
+              field.mesh.p2[axis[0]],
+              field.mesh.p2[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
@@ -113,7 +113,7 @@ def field2outofplane(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -122,7 +122,7 @@ def field2outofplane(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -133,10 +133,10 @@ def field2outofplane(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]],
-              field.cmin[axis[1]],
-              field.cmax[axis[0]],
-              field.cmax[axis[1]]]
+    bounds = [field.mesh.p1[axis[0]],
+              field.mesh.p1[axis[1]],
+              field.mesh.p2[axis[0]],
+              field.mesh.p2[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
@@ -316,7 +316,7 @@ def field2topological_density(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type disc.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -325,7 +325,7 @@ def field2topological_density(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -336,10 +336,10 @@ def field2topological_density(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]],
-              field.cmin[axis[1]],
-              field.cmax[axis[0]],
-              field.cmax[axis[1]]]
+    bounds = [field.mesh.p1[axis[0]],
+              field.mesh.p1[axis[1]],
+              field.mesh.p2[axis[0]],
+              field.mesh.p2[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     shape = np.shape(vec)[0], np.shape(vec)[1]
     mbig = np.zeros((shape[0] + 2, shape[1] + 2, 3))
@@ -391,37 +391,28 @@ class ODT2hv:
         self.headers = list(reduced.columns)[1:]
         self.hv = hv.Table(self.frame)
 
-    def get_curve(self, file, graph):
+    def get_curve(self, x, y):
         """
         Inputs
         ------
-        file:
-            OMF filename
-        graph:
-            One of ODT2hv.headers, a header from the ODT file.
+        x: x axis from self.headers
+        y: y axis from self.headers
         """
 
-        if isinstance(file, str):
-            try:
-                index = self.omfpaths.index(file)
-            except:
-                raise ValueError("File not in list of OMF files")
-        else:
-            index = file
-        return self.hv.to.curve('File', graph, []) * \
-            hv.VLine(index)
+        return self.hv.to.curve(x, y, [])
 
     def create_holomap(self):
-        file_dimension = hv.Dimension('File')
-        graphdim = hv.Dimension('Graph')
-        inplane = [((filename_fun(file), graph),
-                    self.get_curve(file, graph))
-                   for file in self.omfpaths
-                   for graph in self.headers]
-        return hv.HoloMap(inplane, kdims=[file_dimension, graphdim])
+        xdim = hv.Dimension('x')
+        ydim = hv.Dimension('y')
+        inplane = [((x, y),
+                    self.get_curve(x, y))
+                   for x in self.headers
+                   for y in self.headers]
+        return hv.HoloMap(inplane, kdims=[xdim, ydim])
 
     def create_dmap(self):
-        file_dimension = hv.Dimension(
-            'File', values=self.omfpaths, value_format=filename_fun)
-        graph = hv.Dimension('Graph', values=self.headers)
-        return hv.DynamicMap(self.get_curve, kdims=[file_dimension, graph])
+        xdim = hv.Dimension('x', values=self.headers)
+        ydim = hv.Dimension('Graph', values=self.headers)
+        return hv.DynamicMap(self.get_curve, kdims=[xdim, ydim])
+
+
