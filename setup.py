@@ -8,9 +8,9 @@ setup(name='joommftools',
       url='http://github.com/joommf/tools',
       packages=['joommftools'],
       install_requires=[
-          'finitedifferencefield',
-          'oommffield',
-          'holoviews'
+          'discretisedfield',
+          'holoviews',
+          'pandas',
       ],
       classifiers=[
           'License :: OSI Approved :: BSD License',
