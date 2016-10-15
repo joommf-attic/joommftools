@@ -4,7 +4,12 @@ python:
 
 install:
   - pip install .
-  - pip install pytest
+  - pip install pytest pytest-cov nbval
+  - git clone https://github.com/joommf/discretisedfield.git
+  - git clone https://github.com/joommf/oommfodt.git
+  - pip install discretisedfield
+  - pip install oommfodt
+  - rm -rf discretisedfield oommfodt
 
 script:
-  - py.test -v
+  - cd example && py.test . -v --nbval 
