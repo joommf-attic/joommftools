@@ -85,7 +85,6 @@ def field2inplane_angle(field, slice_axis, slice_coord, opts=None):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    print(dir(bounds))
     bounds = [field.mesh.p1[axis[0]],
               field.mesh.p1[axis[1]],
               field.mesh.p2[axis[0]],
