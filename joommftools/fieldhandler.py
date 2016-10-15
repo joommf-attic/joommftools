@@ -1,18 +1,17 @@
 import holoviews as hv
 import numpy as np
 import pandas as pd
-import oommffield
 import oommfodt
+import discretisedfield
 import re
 import glob
 import os
-
 
 def filename_fun(filename):
     return int(filename.split('-')[3])
 
 
-def field2inplane_vectorfield(field, slice_axis, slice_coord):
+def field2inplane_vectorfield(field, slice_axis, slice_coord, opts=None):
     """
     field2hv(field, slice_axis, slice_coord)
 
@@ -22,7 +21,7 @@ def field2inplane_vectorfield(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -31,7 +30,7 @@ def field2inplane_vectorfield(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -52,10 +51,10 @@ def field2inplane_vectorfield(field, slice_axis, slice_coord):
     kdims = kdims = [dims[axis[0]], dims[axis[1]]]
     return hv.VectorField([X, Y, angm, modm],
                           kdims=kdims, vdims=['xyfield'],
-                          label='In-plane Magnetisation')
+                          label='In-plane Magnetisation', options=opts)
 
 
-def field2inplane_angle(field, slice_axis, slice_coord):
+def field2inplane_angle(field, slice_axis, slice_coord, opts=None):
     """
     field2hv(field, slice_axis, slice_coord)
 
@@ -65,7 +64,7 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -74,7 +73,7 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -85,10 +84,11 @@ def field2inplane_angle(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]],
-              field.cmin[axis[1]],
-              field.cmax[axis[0]],
-              field.cmax[axis[1]]]
+    print(dir(bounds))
+    bounds = [field.mesh.p1[axis[0]],
+              field.mesh.p1[axis[1]],
+              field.mesh.p2[axis[0]],
+              field.mesh.p2[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
@@ -100,10 +100,10 @@ def field2inplane_angle(field, slice_axis, slice_coord):
                     kdims=kdims,
                     label='In-plane Magnetisation angle',
                     vdims=[hv.Dimension('xyfield'.format(slice_axis),
-                                        range=(0, 2*np.pi))])
+                                        range=(0, 2*np.pi))], options=opts)
 
 
-def field2outofplane(field, slice_axis, slice_coord):
+def field2outofplane(field, slice_axis, slice_coord, opts=None):
     """
     field2hv(field, slice_axis, slice_coord)
 
@@ -113,7 +113,7 @@ def field2outofplane(field, slice_axis, slice_coord):
     Inputs
     ======
     field:
-        Path to an OMF file or object of type oommffield.Field
+        Path to an OMF file or object of type discretisedfield.Field
     slice_axis:
         The axis along which the vector field will be sliced given as a string.
         Must be one of ['x', 'y', 'z']
@@ -122,7 +122,7 @@ def field2outofplane(field, slice_axis, slice_coord):
     """
     # Construct a field object if not a field object
     if isinstance(field, str):
-        field = oommffield.read_oommf_file(field)
+        field = discretisedfield.read_oommf_file(field, normalisedto=1)
     field.normalise()
     if slice_axis == 'z':
         axis = (0, 1, 2)
@@ -133,10 +133,10 @@ def field2outofplane(field, slice_axis, slice_coord):
     else:
         raise ValueError("Slice Axis must be one of 'x', 'y' ,'z'")
     dims = ['x', 'y', 'z']
-    bounds = [field.cmin[axis[0]],
-              field.cmin[axis[1]],
-              field.cmax[axis[0]],
-              field.cmax[axis[1]]]
+    bounds = [field.mesh.p1[axis[0]],
+              field.mesh.p1[axis[1]],
+              field.mesh.p2[axis[0]],
+              field.mesh.p2[axis[1]]]
     x, y, vec, coords = field.slice_field(slice_axis, slice_coord)
     X, Y = np.meshgrid(x, y)
     flat = vec.flatten()
@@ -425,3 +425,5 @@ class ODT2hv:
             'File', values=self.omfpaths, value_format=filename_fun)
         graph = hv.Dimension('Graph', values=self.headers)
         return hv.DynamicMap(self.get_curve, kdims=[file_dimension, graph])
+
+
