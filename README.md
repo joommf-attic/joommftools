@@ -1,6 +1,6 @@
-# tools
+# Joommftools
 
-A collection of Python 3 tools for processing OOMMF data
+A collection of Python 3 tools for processing OOMMF data, or data from micromagnetic packages which is converted to the OMF filetype used by OOMMF.
 
 To install and use Joommftools, a number of standard packages must be installed:
 
