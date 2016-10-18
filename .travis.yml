@@ -12,4 +12,4 @@ install:
   - rm -rf discretisedfield oommfodt
 
 script:
-  - cd examples && py.test Visualising\ Magnetic\ Fields\ with\ Holoviews.ipynb -v --nbval --sanitize-with sanitize_file
+  - cd examples && py.test --nbval --sanitize-with sanitize_file -v Visualising\ Magnetic\ Fields\ with\ Holoviews.ipynb
